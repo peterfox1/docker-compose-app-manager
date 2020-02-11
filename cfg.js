@@ -1,2 +1,0 @@
-
-exports.rootDir = __dirname + '/';

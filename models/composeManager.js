@@ -1,5 +1,5 @@
 
-const cfg = require('../cfg');
+const cfg = require('./cfg');
 
 const fs = require('fs-extra');
 const YAML = require('yaml');
