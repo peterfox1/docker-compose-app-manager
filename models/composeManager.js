@@ -1,43 +1,104 @@
 
-const cfg = require('./cfg');
-
 const fs = require('fs-extra');
 const YAML = require('yaml');
 
+const cfg = require('./cfg');
+const TermInput = require('./TermInput');
 
 
 let ComposeManager = function(_opt) {
 	
-	this._FILE_LIVE = 'docker-compose.yml';
-	this._FILE_ALL = 'docker-compose.all';
-	
+	this._FILE_ACTIVE = 'docker-compose.yml';
+	this._FILE_ALL = 'docker-compose.all.yml';
 	
 	
 	let opt = {
-		dirPath: cfg.rootDir,
+		dirPath			: cfg.rootDir,
+		DataInput		: TermInput,
+		portStart		: cfg.portStart,
+		portEnd			: cfg.portStart + cfg.portRange,
 		..._opt,
 	};
 	
-	this._dirPath = opt.dirPath;
+	this._dirPath		= opt.dirPath;
+	this._DataInput		= opt.DataInput;
+	this._portStart		= opt.portStart;
+	this._portEnd		= opt.portEnd;
 	
 	this._compose_parsed = {};	// memory cache of parsed file data
 	
 };
 
 
-ComposeManager.prototype.enableSite = function(siteRef) {
+ComposeManager.prototype.enableApp = async function(appRef) {
 	
-	let siteCfg = this._findSite(siteRef);
+	let appConfig = this._findApp(appRef);
+	if (!appConfig) { return { error: 'app not found' }; }
 	
-	if (!siteCfg) {
-		throw new Error(`Site not found: '${siteRef}'`)
-	}
-	
-	let liveCompose = this._readComposeData(this._FILE_LIVE);
+	let appConfig_active = this._findApp(appRef, { filename: this._FILE_ACTIVE });
+	if (appConfig_active) { return { error: 'app already active', config: appConfig_active }; }
 	
 	
+	let output = {};
 	
-	console.log(siteCfg);
+	// TODO assign ports
+	
+	// TODO add to active file
+	
+	return output;
+	
+};
+
+
+ComposeManager.prototype.disableApp = async function(appRef) {
+	
+	let appConfig = this._findApp(appRef);
+	if (!appConfig) { return { error: 'app not found' }; }
+	
+	let appConfig_active = this._findApp(appRef, { filename: this._FILE_ACTIVE });
+	if (!appConfig_active) { return { error: 'app already disabled', config: appConfig_active }; }
+	
+	
+	let output = {};
+	
+	// TODO remove from active config
+	
+	return output;
+	
+};
+
+
+ComposeManager.prototype.newApp = async function(appRef, _newAppConfig) {
+	
+	let appConfig_existing = this._findApp(appRef);
+	if (appConfig_existing) { return { error: 'container config already exists', config: appConfig_existing }; }
+	
+	
+	let newAppConfig = {
+		appRef: appRef,
+		containerType: 'build',
+		container: './docker/_default',
+		ports: '80,443',
+	};
+	
+	let termInput = new this._DataInput({ defaults: newAppConfig });
+	
+	newAppConfig.containerType = await termInput.capture('containerType', { question: 'Type [image|build]' });
+	newAppConfig.container = await termInput.capture('container', { question: 'Container name/path' });
+	newAppConfig.ports = await termInput.capture('ports', { question: 'Ports' });
+	
+	
+	let output = {};
+	
+	// TODO convert to appConfig
+	
+	// TODO assign port
+	
+	// TODO add to composeAll
+	
+	console.log('TODO newAppConfig', newAppConfig);
+	
+	return output;
 	
 };
 
@@ -46,7 +107,7 @@ ComposeManager.prototype.enableSite = function(siteRef) {
 
 /**
  * Check that the configs are valid.
- *  - Ensure there's no sites enabled that aren't in 'all'
+ *  - Ensure there's no apps enabled that aren't in 'all'
  */
 ComposeManager.prototype.validate = function() {
 	// TODO
@@ -54,7 +115,7 @@ ComposeManager.prototype.validate = function() {
 
 /**
  * Fix config validation errors.
- *  - Move missing sites from live to all.
+ *  - Move missing apps from active to all.
  */
 ComposeManager.prototype.fix = function() {
 	// TODO
@@ -65,37 +126,52 @@ ComposeManager.prototype.fix = function() {
 
 //region --- Data Lookup ---
 
-ComposeManager.prototype._findSite = function(siteRef, _opt) {
+ComposeManager.prototype._findApp = function(appRef, _opt) {
 	
 	let opt = {
 		filename: this._FILE_ALL,	// Default to find the site in all data.
 		..._opt,
 	};
 	
-	let allSites = this._readComposeData(opt.filename);
+	let composeData = this._readComposeData(opt.filename);
 	
-	if (typeof(allSites[siteRef]) === 'undefined') {
-		return null;
+	if (typeof(composeData[appRef]) === 'undefined') {
+		return null;	// Site not found
 	}
 	
-	return allSites[siteRef];
+	return composeData[appRef];
 	
 };
 
-ComposeManager.prototype._findSitesUsingPort = function(portNo, _opt) {
+ComposeManager.prototype._findAppUsingPort = function(portNo, _opt) {
 	
 	let opt = {
 		filename: this._FILE_ALL,	// Default to find the site in all data.
 		..._opt,
 	};
 	
-	let allSites = this._readComposeData(opt.filename);
+	let composeData = this._readComposeData(opt.filename);
 	
-	if (typeof(allSites[siteRef]) === 'undefined') {
-		return null;
-	}
+	// TODO search apps for the portNo
 	
-	return allSites[siteRef];
+	return;
+	
+};
+
+ComposeManager.prototype._getNextAvailablePort = function(_opt) {
+	
+	let opt = {
+		filename: this._FILE_ALL,	// Default to find the site in all data.
+		..._opt,
+	};
+	
+	let composeData = this._readComposeData(opt.filename);
+	
+	// TODO get ports in use
+	
+	// TODO Increment by 10 from startPort to find the next available port.
+	
+	return;
 	
 };
 
